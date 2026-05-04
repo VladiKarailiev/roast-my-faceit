@@ -120,9 +120,8 @@ export default function ReportView({ report, onRestart }: Props) {
         slide={slide}
         index={index}
         total={total}
-        isFirst={index === 0}
-        isLast={index === total - 1}
-        avatar={report.player.avatar}
+        raw={report.raw}
+        player={report.player}
       />
 
       {/* Touch zones — Instagram-Stories style.

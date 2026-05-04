@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Roast My FACEIT
 
 Type a FACEIT nickname → get a Wrapped-style roast of your CS2 stats. Comedy only.
@@ -103,3 +104,6 @@ public/
 ## License
 
 MIT. Roasts are mine. Pain is yours.
+=======
+# roast-my-faceit
+>>>>>>> 32ef92d63dce1f50b1634ed7cf22e97310d9e1ed

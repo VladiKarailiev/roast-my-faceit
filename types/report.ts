@@ -24,6 +24,8 @@ export interface NormalizedStats {
   currentWinStreak: number;
   recentLossStreak: number;
   recentWinStreak: number;
+  /** "1" = win, "0" = loss. Newest first. May be empty. */
+  recentResults: string[];
   favoriteMap: MapStat | null;
   worstMap: MapStat | null;
   bestMap: MapStat | null;

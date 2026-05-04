@@ -91,6 +91,9 @@ export function normalize(
   const recent = lifetime["Recent Results"];
   const recentLossStreak = streakFrom(recent, "0");
   const recentWinStreak = streakFrom(recent, "1");
+  const recentResults: string[] = Array.isArray(recent)
+    ? recent.map((r) => (String(r) === "1" ? "1" : "0"))
+    : [];
 
   // Map segments → 5v5 maps only (skip wingman/competitive variants).
   const mapSegments = segments.filter(
@@ -134,6 +137,7 @@ export function normalize(
     currentWinStreak,
     recentLossStreak,
     recentWinStreak,
+    recentResults,
     favoriteMap,
     worstMap,
     bestMap,
