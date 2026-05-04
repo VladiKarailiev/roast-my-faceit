@@ -14,81 +14,108 @@ export default async function OpenGraphImage() {
           height: "100%",
           display: "flex",
           flexDirection: "column",
-          background:
-            "radial-gradient(120% 80% at 50% 0%, #ff5500 0%, #1a0a05 55%, #07070b 100%)",
-          color: "white",
-          padding: "72px 80px",
+          padding: "64px 80px",
           fontFamily:
             "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif",
-          position: "relative",
+          color: "white",
+          // Dark base + a single soft orange glow tucked into the top-right
+          // corner so the orange "FACEIT" wordmark below sits on a clean
+          // dark background and pops.
+          background: "#07070b",
+          backgroundImage:
+            "radial-gradient(900px 620px at 105% -10%, rgba(255,85,0,0.55) 0%, rgba(255,85,0,0.12) 38%, transparent 65%)",
         }}
       >
-        {/* eyebrow */}
+        {/* ── Top row: logo + eyebrow ───────────────────────────────── */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 12,
-            fontSize: 22,
-            fontWeight: 700,
-            letterSpacing: "0.32em",
-            textTransform: "uppercase",
-            color: "rgba(255,255,255,0.85)",
+            gap: 18,
           }}
         >
-          <div
+          {/* Triangle mark */}
+          <svg
+            width="40"
+            height="40"
+            viewBox="0 0 64 64"
+            style={{ display: "block" }}
+          >
+            <path d="M16 50 L32 14 L48 50 Z" fill="#ff5500" />
+            <circle cx="32" cy="42" r="3" fill="#07070b" />
+          </svg>
+          <span
             style={{
-              width: 12,
-              height: 12,
-              borderRadius: 9999,
-              background: "#ffffff",
+              fontSize: 22,
+              fontWeight: 800,
+              letterSpacing: "0.32em",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.7)",
             }}
-          />
-          Unofficial · Comedy · For Laughs
+          >
+            Unofficial · Comedy
+          </span>
         </div>
 
-        {/* big wordmark */}
+        {/* ── Wordmark — pushed to the bottom via mt:auto ───────────── */}
         <div
           style={{
             display: "flex",
             flexDirection: "column",
             marginTop: "auto",
-            marginBottom: "auto",
             fontWeight: 900,
-            fontSize: 200,
-            lineHeight: 0.92,
-            letterSpacing: "-0.04em",
+            fontSize: 168,
+            lineHeight: 0.94,
+            letterSpacing: "-0.045em",
           }}
         >
-          <span style={{ color: "white" }}>ROAST</span>
-          <span style={{ color: "white" }}>MY</span>
-          <span style={{ color: "#ff5500" }}>FACEIT</span>
+          <span style={{ color: "white" }}>Roast My</span>
+          <span style={{ color: "#ff5500" }}>FACEIT.</span>
         </div>
 
-        {/* footer row */}
+        {/* ── Divider ──────────────────────────────────────────────── */}
+        <div
+          style={{
+            display: "flex",
+            height: 2,
+            background: "rgba(255,255,255,0.1)",
+            marginTop: 32,
+            marginBottom: 22,
+          }}
+        />
+
+        {/* ── Tagline + meta ────────────────────────────────────────── */}
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "flex-end",
-            color: "rgba(255,255,255,0.85)",
-            fontSize: 28,
-            fontWeight: 600,
+            gap: 32,
           }}
         >
-          <span style={{ maxWidth: 720, lineHeight: 1.25 }}>
+          <span
+            style={{
+              fontSize: 30,
+              fontWeight: 600,
+              lineHeight: 1.25,
+              color: "rgba(255,255,255,0.85)",
+              maxWidth: 800,
+            }}
+          >
             Type a nickname. Get a Wrapped-style roast of your CS2 stats.
           </span>
           <span
             style={{
-              fontSize: 22,
+              display: "flex",
+              fontSize: 17,
               fontWeight: 800,
-              letterSpacing: "0.24em",
+              letterSpacing: "0.32em",
               textTransform: "uppercase",
-              opacity: 0.7,
+              color: "rgba(255,255,255,0.45)",
+              whiteSpace: "nowrap",
             }}
           >
-            cs2 · level · elo · k/d
+            12 slides · 50 games
           </span>
         </div>
       </div>
