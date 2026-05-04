@@ -16,8 +16,12 @@ export interface NormalizedStats {
   elo: number;
   /** Highest ELO observed in the recent N-match window. 0 if unknown. */
   peakElo: number;
+  /** Lowest ELO observed in the same window. 0 if unknown. */
+  lowElo: number;
   /** How many recent matches we sampled for peakElo (for honest labelling). */
   peakEloSampleSize: number;
+  /** True when totalDeaths was derived from K/D rather than reported by FACEIT. */
+  totalDeathsDerived: boolean;
   matches: number;
   wins: number;
   losses: number;
@@ -92,6 +96,7 @@ export interface Report {
     skillLevel: SkillLevel;
     elo: number;
     peakElo: number;
+    lowElo: number;
     peakEloSampleSize: number;
   };
   raw: NormalizedStats;

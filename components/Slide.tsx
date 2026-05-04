@@ -27,6 +27,7 @@ interface Props {
     skillLevel: number;
     elo: number;
     peakElo: number;
+    lowElo: number;
     peakEloSampleSize: number;
   };
 }
@@ -104,12 +105,16 @@ export default function Slide({
         </div>
       )}
 
-      {/* Hero — different per slide */}
-      <div className="relative z-10 mt-auto flex flex-col gap-6">
+      {/* Hero — different per slide. The body text is intentionally the
+          biggest, boldest, last-read element on every slide. The orange
+          leading bar marks it as the punch line. */}
+      <div className="relative z-10 mt-auto flex flex-col gap-7">
         {renderHero(slide, raw, player)}
-        <p className="fluid-body max-w-prose text-balance text-white/95">
-          {slide.body}
-        </p>
+        <div className="border-l-[3px] border-[var(--color-faceit)] pl-4 sm:pl-5">
+          <p className="fluid-body max-w-prose text-balance text-white">
+            {slide.body}
+          </p>
+        </div>
       </div>
     </section>
   );
@@ -320,52 +325,64 @@ function LevelHero({ raw }: { raw: NormalizedStats }) {
 }
 
 function PeakHero({ raw }: { raw: NormalizedStats }) {
+  // Honest range: low → now → high across the sampled match window.
+  // Position `now` along the low→high axis. Clamp to a small minimum so
+  // the dot is visible even at the edges.
+  const span = Math.max(1, raw.peakElo - raw.lowElo);
+  const nowPct = Math.max(
+    4,
+    Math.min(96, ((raw.elo - raw.lowElo) / span) * 100),
+  );
+  const swing = raw.peakElo - raw.lowElo;
   const delta = Math.max(0, raw.peakElo - raw.elo);
-  // Visualize: position of currentElo vs peak on a 0–peak scale.
-  // We anchor the bar between max(currentElo - 200, 0) and peakElo to
-  // make the gap legible even when peak is barely above current.
-  const lo = Math.max(0, raw.elo - 200);
-  const span = Math.max(1, raw.peakElo - lo);
-  const currentPct = ((raw.elo - lo) / span) * 100;
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex items-baseline gap-3">
-        <span className="fluid-display leading-none">
-          <Counter to={raw.peakElo} duration={1100} />
+      <div className="flex flex-col">
+        <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/55">
+          Last {raw.peakEloSampleSize} games · ELO swing
         </span>
-        <span className="text-sm font-bold uppercase tracking-[0.2em] text-white/65">
-          peak ELO
+        <span className="fluid-display leading-none whitespace-nowrap">
+          <Counter to={raw.lowElo} />
+          <span className="px-2 text-white/45">–</span>
+          <Counter to={raw.peakElo} />
         </span>
       </div>
 
-      {/* current vs peak bar */}
-      <div className="flex flex-col gap-2">
-        <div className="relative h-3 w-full overflow-hidden rounded-full bg-white/10">
+      {/* low → now → high range bar */}
+      <div className="flex flex-col gap-3">
+        <div className="relative h-3 w-full rounded-full bg-white/10">
           <div
-            className="bar-fill h-full bg-[var(--color-faceit)]"
-            style={{ width: `${Math.max(2, currentPct)}%` }}
+            className="bar-fill absolute inset-y-0 left-0 right-0 rounded-full bg-gradient-to-r from-rose-400/70 via-white/40 to-emerald-400/80"
           />
+          {/* "now" marker */}
           <div
-            className="pointer-events-none absolute top-0 h-full w-px bg-white/70"
-            style={{ left: "100%" }}
+            className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2"
+            style={{
+              left: `${nowPct}%`,
+              animation: "pop 520ms cubic-bezier(0.16, 1, 0.3, 1) both",
+              animationDelay: "320ms",
+            }}
             aria-hidden
-          />
+          >
+            <div className="grid h-6 w-6 place-items-center rounded-full border-2 border-white bg-[var(--color-faceit)] shadow-[0_0_14px_rgba(255,85,0,0.7)]" />
+          </div>
         </div>
-        <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-white/55">
-          <span>now · {fmtN(raw.elo)}</span>
-          <span className="text-white/85">peak · {fmtN(raw.peakElo)}</span>
+        <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-white/65">
+          <span className="text-rose-200">low · {fmtN(raw.lowElo)}</span>
+          <span className="text-white">now · {fmtN(raw.elo)}</span>
+          <span className="text-emerald-200">high · {fmtN(raw.peakElo)}</span>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <TierBadge>
           {delta === 0
-            ? "Currently at peak"
-            : `${fmtN(delta)} below peak`}
+            ? "At the recent high"
+            : `${fmtN(delta)} under recent high`}
         </TierBadge>
         <span className="rounded-full border border-white/15 bg-black/35 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white/70 backdrop-blur">
-          last {raw.peakEloSampleSize} games
+          swing · {fmtN(swing)} ELO
         </span>
       </div>
     </div>
@@ -417,7 +434,7 @@ function KillsHero({ raw }: { raw: NormalizedStats }) {
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-xl border border-white/10 bg-black/30 p-3">
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/55">
-            Deaths
+            {raw.totalDeathsDerived ? "≈ Deaths" : "Deaths"}
           </p>
           <p className="text-xl font-black tabular-nums">
             {raw.totalDeaths > 0 ? <Counter to={raw.totalDeaths} /> : "—"}
@@ -445,8 +462,19 @@ function KillsHero({ raw }: { raw: NormalizedStats }) {
 }
 
 function KDHero({ raw }: { raw: NormalizedStats }) {
-  // Map K/D into a 0–100 scale across 0.5 → 2.0 for the visual bar.
-  const pos = Math.max(0, Math.min(100, ((raw.kd - 0.5) / 1.5) * 100));
+  // Piecewise scale so 1.00 (the league average) lands exactly at the
+  // visual center of the bar — the bottom row labels (0.5 / avg 1.0 /
+  // 2.0) are evenly spaced via justify-between, so we map the data to
+  // match: 0.5 → 1.0 fills the LEFT half (0–50%), 1.0 → 2.0 fills the
+  // RIGHT half (50–100%). K/D 0.9 now correctly lands left-of-center.
+  const kdToPct = (k: number) => {
+    if (k <= 0.5) return 0;
+    if (k >= 2.0) return 100;
+    if (k <= 1.0) return ((k - 0.5) / 0.5) * 50;
+    return 50 + ((k - 1.0) / 1.0) * 50;
+  };
+  const pos = kdToPct(raw.kd);
+
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-baseline gap-3">
@@ -458,17 +486,27 @@ function KDHero({ raw }: { raw: NormalizedStats }) {
         </span>
       </div>
 
-      {/* Number-line meter from 0.5 to 2.0 with a 1.0 average tick */}
+      {/* Number-line meter from 0.5 to 2.0 with 1.0 dead-center */}
       <div className="flex flex-col gap-2">
-        <div className="relative h-3 w-full overflow-hidden rounded-full bg-white/10">
+        <div className="relative h-3 w-full rounded-full bg-white/10">
           <div
-            className="bar-fill h-full bg-[var(--color-faceit)]"
+            className="bar-fill h-full rounded-full bg-[var(--color-faceit)]"
             style={{ width: `${pos}%` }}
           />
-          {/* 1.00 average mark */}
+          {/* "you are here" dot, anchored to the actual K/D position */}
           <div
-            className="pointer-events-none absolute top-0 h-full w-px bg-white/45"
-            style={{ left: `${((1.0 - 0.5) / 1.5) * 100}%` }}
+            className="pointer-events-none absolute top-1/2 -translate-x-1/2 -translate-y-1/2 h-4 w-4 rounded-full border-2 border-white bg-[var(--color-faceit)] shadow-[0_0_10px_rgba(255,85,0,0.7)]"
+            style={{
+              left: `${pos}%`,
+              animation: "pop 520ms cubic-bezier(0.16, 1, 0.3, 1) both",
+              animationDelay: "320ms",
+            }}
+            aria-hidden
+          />
+          {/* avg 1.0 reference tick at exactly 50% */}
+          <div
+            className="pointer-events-none absolute top-0 h-full w-px bg-white/55"
+            style={{ left: "50%" }}
             aria-hidden
           />
         </div>

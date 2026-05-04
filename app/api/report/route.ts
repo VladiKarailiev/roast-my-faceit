@@ -57,7 +57,7 @@ export async function GET(req: Request) {
     // request if FACEIT degrades it.
     const [stats, matchStatsSettled] = await Promise.all([
       getCs2LifetimeStats(player.player_id),
-      getCs2RecentMatchStats(player.player_id, 30).catch(() => null),
+      getCs2RecentMatchStats(player.player_id, 50).catch(() => null),
     ]);
 
     const normalized = normalize(player, stats, matchStatsSettled);

@@ -144,7 +144,7 @@ export async function getCs2LifetimeStats(
  */
 export async function getCs2RecentMatchStats(
   playerId: string,
-  limit = 30,
+  limit = 50,
 ): Promise<FaceitMatchStats> {
   return faceitFetch<FaceitMatchStats>(
     `/players/${playerId}/games/cs2/stats?limit=${limit}`,

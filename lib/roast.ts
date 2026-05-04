@@ -140,22 +140,36 @@ export function buildReport(s: NormalizedStats): Report {
     theme: s.skillLevel >= 9 ? "elite" : s.skillLevel >= 6 ? "cool" : s.skillLevel >= 3 ? "neutral" : "tilt",
   });
 
-  // 2b) PEAK ELO (only if we sampled real ELO data)
-  if (s.peakEloSampleSize > 0 && s.peakElo > 0) {
+  // 2b) RECENT ELO RANGE (only if FACEIT actually returned per-match ELO)
+  // Renamed from "peak" to be honest: this is the high/low across the
+  // sampled window, NOT an all-time peak. We hide the slide entirely if
+  // we can't see real movement (high === low === current means the API
+  // didn't give us useful data and "peak X" would just lie).
+  if (
+    s.peakEloSampleSize >= 3 &&
+    s.peakElo > 0 &&
+    s.lowElo > 0 &&
+    (s.peakElo > s.elo || s.lowElo < s.elo)
+  ) {
     const delta = s.peakElo - s.elo;
     const peakTier = tier.peak(delta, s.peakElo);
     slides.push({
       id: "peak",
-      eyebrow: `Peak (last ${s.peakEloSampleSize})`,
-      title: "Recent ceiling",
-      bigStat: `${fmtNumber(s.peakElo)} ELO`,
-      subStat: delta > 0 ? `${delta} below it now` : "you're at it right now",
+      eyebrow: `Last ${s.peakEloSampleSize} games`,
+      title: "ELO swing",
+      bigStat: `${fmtNumber(s.lowElo)} – ${fmtNumber(s.peakElo)}`,
+      subStat: `now · ${fmtNumber(s.elo)}`,
       body: fill(pick(TEMPLATES.peak[peakTier]), {
         ...baseVars,
+        // peakElo is the canonical variable used by templates.ts; high/low/swing
+        // are kept as aliases in case anyone wants to write range-style lines.
         peakElo: fmtNumber(s.peakElo),
+        high: fmtNumber(s.peakElo),
+        low: fmtNumber(s.lowElo),
         currentElo: fmtNumber(s.elo),
         delta: fmtNumber(delta),
         sampleSize: s.peakEloSampleSize,
+        swing: fmtNumber(s.peakElo - s.lowElo),
       }),
       theme:
         peakTier === "atPeak"
@@ -387,6 +401,7 @@ function finalize(s: NormalizedStats, slides: Slide[]): Report {
       skillLevel: s.skillLevel,
       elo: s.elo,
       peakElo: s.peakElo,
+      lowElo: s.lowElo,
       peakEloSampleSize: s.peakEloSampleSize,
     },
     raw: s,

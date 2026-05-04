@@ -74,46 +74,60 @@ function streakFrom(results: unknown, target: "1" | "0"): number {
 function summarizeMatches(matchStats: FaceitMatchStats | null) {
   const empty = {
     peakElo: 0,
+    lowElo: 0,
     peakEloSampleSize: 0,
     triples: 0,
     quads: 0,
     pentas: 0,
     multikillSampleSize: 0,
     mostKills: 0,
+    sampledKills: 0,
+    sampledDeaths: 0,
   };
   if (!matchStats?.items?.length) return empty;
 
   let peakElo = 0;
+  let lowElo = Number.POSITIVE_INFINITY;
   let peakEloSampleSize = 0;
   let triples = 0;
   let quads = 0;
   let pentas = 0;
   let mostKills = 0;
   let multikillSampleSize = 0;
+  let sampledKills = 0;
+  let sampledDeaths = 0;
 
   for (const item of matchStats.items) {
     const s = item.stats ?? {};
-    const elo = num(pickKey(s, ["Elo", "elo"]));
+    // FACEIT's casing has drifted between API revisions; try the common ones.
+    const elo = num(pickKey(s, ["Elo", "elo", "ELO", "FaceitElo"]));
     if (elo > 0) {
       peakEloSampleSize++;
       if (elo > peakElo) peakElo = elo;
+      if (elo < lowElo) lowElo = elo;
     }
     triples += num(pickKey(s, ["Triple Kills", "triple_kills"]));
     quads += num(pickKey(s, ["Quadro Kills", "quadro_kills"]));
     pentas += num(pickKey(s, ["Penta Kills", "penta_kills"]));
     const k = num(pickKey(s, ["Kills"]));
+    const d = num(pickKey(s, ["Deaths"]));
     if (k > mostKills) mostKills = k;
+    sampledKills += k;
+    sampledDeaths += d;
     multikillSampleSize++;
   }
 
   return {
     peakElo,
+    lowElo: lowElo === Number.POSITIVE_INFINITY ? 0 : lowElo,
     peakEloSampleSize,
     triples,
     quads,
     pentas,
     multikillSampleSize,
     mostKills,
+    sampledKills,
+    sampledDeaths,
   };
 }
 
@@ -201,9 +215,28 @@ export function normalize(
   const cs2 = player.games?.cs2;
   const currentElo = num(cs2?.faceit_elo);
   const summary = summarizeMatches(matchStats);
-  // Peak is the higher of: current ELO and the highest seen in recent matches.
-  // Floor at currentElo so we never claim a peak below where the player is now.
+  // Bound the recent ELO range with currentElo so we never report a high
+  // below "where the player is now" or a low above it.
   const peakElo = Math.max(currentElo, summary.peakElo);
+  const lowElo =
+    summary.lowElo > 0
+      ? Math.min(currentElo || Number.POSITIVE_INFINITY, summary.lowElo)
+      : 0;
+
+  // FACEIT's "Total Deaths" lifetime field is missing on a lot of accounts.
+  // If we can derive it from totalKills / averageKD, do — and tag the result
+  // so the UI can label it as approximate.
+  let totalDeathsResolved = totalDeaths;
+  let totalDeathsDerived = false;
+  if (totalDeathsResolved <= 0 && totalKills > 0 && kd > 0) {
+    totalDeathsResolved = Math.round(totalKills / kd);
+    totalDeathsDerived = true;
+  } else if (totalDeathsResolved <= 0 && summary.sampledDeaths > 0) {
+    // Last resort: extrapolate from the sampled window.
+    const sampleAvg = summary.sampledDeaths / summary.multikillSampleSize;
+    totalDeathsResolved = Math.round(sampleAvg * Math.max(matches, 1));
+    totalDeathsDerived = true;
+  }
 
   return {
     nickname: player.nickname,
@@ -213,6 +246,7 @@ export function normalize(
     skillLevel: clampSkillLevel(num(cs2?.skill_level)),
     elo: currentElo,
     peakElo,
+    lowElo,
     peakEloSampleSize: summary.peakEloSampleSize,
     matches,
     wins,
@@ -221,7 +255,8 @@ export function normalize(
     kd,
     hs,
     totalKills,
-    totalDeaths,
+    totalDeaths: totalDeathsResolved,
+    totalDeathsDerived,
     totalHeadshots,
     tripleKills: summary.triples,
     quadKills: summary.quads,
