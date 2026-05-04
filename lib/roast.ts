@@ -140,6 +140,34 @@ export function buildReport(s: NormalizedStats): Report {
     theme: s.skillLevel >= 9 ? "elite" : s.skillLevel >= 6 ? "cool" : s.skillLevel >= 3 ? "neutral" : "tilt",
   });
 
+  // 2b) PEAK ELO (only if we sampled real ELO data)
+  if (s.peakEloSampleSize > 0 && s.peakElo > 0) {
+    const delta = s.peakElo - s.elo;
+    const peakTier = tier.peak(delta, s.peakElo);
+    slides.push({
+      id: "peak",
+      eyebrow: `Peak (last ${s.peakEloSampleSize})`,
+      title: "Recent ceiling",
+      bigStat: `${fmtNumber(s.peakElo)} ELO`,
+      subStat: delta > 0 ? `${delta} below it now` : "you're at it right now",
+      body: fill(pick(TEMPLATES.peak[peakTier]), {
+        ...baseVars,
+        peakElo: fmtNumber(s.peakElo),
+        currentElo: fmtNumber(s.elo),
+        delta: fmtNumber(delta),
+        sampleSize: s.peakEloSampleSize,
+      }),
+      theme:
+        peakTier === "atPeak"
+          ? "elite"
+          : peakTier === "near"
+            ? "cool"
+            : peakTier === "ascending"
+              ? "neutral"
+              : "tilt",
+    });
+  }
+
   // ── If no CS2 matches, short-circuit to a ghost ending. ─────────────
   if (s.matches === 0) {
     slides.push({
@@ -180,6 +208,36 @@ export function buildReport(s: NormalizedStats): Report {
     }),
     theme: matchesTier === "nolife" ? "danger" : matchesTier === "grinder" ? "hot" : "neutral",
   });
+
+  // 3b) TOTAL CAREER KILLS (only if FACEIT returned the lifetime field)
+  if (s.totalKills > 0) {
+    const killsTier = tier.kills(s.totalKills);
+    const perMatch = s.matches > 0
+      ? (s.totalKills / s.matches).toFixed(1)
+      : "—";
+    slides.push({
+      id: "kills",
+      eyebrow: "Lifetime Kills",
+      title: "Receipts on receipts",
+      bigStat: fmtNumber(s.totalKills),
+      subStat: `${fmtNumber(s.totalDeaths)} deaths • ${perMatch}/match`,
+      body: fill(pick(TEMPLATES.kills[killsTier]), {
+        ...baseVars,
+        totalKills: fmtNumber(s.totalKills),
+        totalDeaths: fmtNumber(s.totalDeaths),
+        perMatch,
+        mostKills: s.mostKillsInMatch || "—",
+      }),
+      theme:
+        killsTier === "psycho"
+          ? "danger"
+          : killsTier === "veteran"
+            ? "hot"
+            : killsTier === "casual"
+              ? "neutral"
+              : "cool",
+    });
+  }
 
   // 4) K/D
   const kdTier = tier.kd(s.kd);
@@ -222,6 +280,36 @@ export function buildReport(s: NormalizedStats): Report {
     body: fill(pick(TEMPLATES.hs[hsTier]), { ...baseVars, hs: Math.round(s.hs) }),
     theme: themeForHS(hsTier),
   });
+
+  // 6b) MULTIKILLS (over recent window)
+  if (s.multikillSampleSize > 0) {
+    const totalMK = s.tripleKills + s.quadKills + s.pentaKills;
+    if (totalMK > 0) {
+      const mkTier = tier.multikill(s.tripleKills, s.quadKills, s.pentaKills);
+      slides.push({
+        id: "multikill",
+        eyebrow: `Multikills · last ${s.multikillSampleSize}`,
+        title: "Highlight reel",
+        bigStat: undefined,
+        subStat: `${s.tripleKills}× 3K · ${s.quadKills}× 4K · ${s.pentaKills}× ACE`,
+        body: fill(pick(TEMPLATES.multikill[mkTier]), {
+          ...baseVars,
+          triples: s.tripleKills,
+          quads: s.quadKills,
+          pentas: s.pentaKills,
+          sampleSize: s.multikillSampleSize,
+        }),
+        theme:
+          mkTier === "godmode"
+            ? "elite"
+            : mkTier === "menace"
+              ? "danger"
+              : mkTier === "spicy"
+                ? "hot"
+                : "neutral",
+      });
+    }
+  }
 
   // 7) STREAK
   const streakTier = tier.streak(s.currentWinStreak, s.recentLossStreak);
@@ -298,6 +386,8 @@ function finalize(s: NormalizedStats, slides: Slide[]): Report {
       region: s.region,
       skillLevel: s.skillLevel,
       elo: s.elo,
+      peakElo: s.peakElo,
+      peakEloSampleSize: s.peakEloSampleSize,
     },
     raw: s,
     slides,

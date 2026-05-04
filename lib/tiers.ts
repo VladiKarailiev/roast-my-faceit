@@ -10,6 +10,9 @@ export type KDTier = "abysmal" | "rough" | "average" | "decent" | "elite" | "god
 export type WinRateTier = "doomed" | "losing" | "even" | "winning" | "smurfing";
 export type HSTier = "spray" | "low" | "mid" | "high" | "aimgod";
 export type StreakTier = "tilted" | "cold" | "warm" | "heater" | "biblical";
+export type KillsTier = "minor" | "casual" | "veteran" | "psycho";
+export type MultikillTier = "tame" | "spicy" | "menace" | "godmode";
+export type PeakTier = "atPeak" | "near" | "ascending" | "fallen";
 
 export const tier = {
   matches(n: number): MatchesTier {
@@ -46,5 +49,30 @@ export const tier = {
     if (currentWin <= 1) return "warm";
     if (currentWin < 5) return "heater";
     return "biblical";
+  },
+  kills(totalKills: number): KillsTier {
+    if (totalKills < 1000) return "minor";
+    if (totalKills < 10000) return "casual";
+    if (totalKills < 50000) return "veteran";
+    return "psycho";
+  },
+  /** Combined "highlight reel score" weighting aces > quads > triples. */
+  multikill(triples: number, quads: number, pentas: number): MultikillTier {
+    const score = triples + quads * 3 + pentas * 10;
+    if (score < 5) return "tame";
+    if (score < 25) return "spicy";
+    if (score < 75) return "menace";
+    return "godmode";
+  },
+  /**
+   * Where the player sits relative to their recent peak.
+   * `delta` = peakElo - currentElo (always >= 0).
+   */
+  peak(delta: number, peakElo: number): PeakTier {
+    if (peakElo === 0) return "atPeak";
+    if (delta === 0) return "atPeak";
+    if (delta < 25) return "near";
+    if (delta < 100) return "ascending";
+    return "fallen";
   },
 };

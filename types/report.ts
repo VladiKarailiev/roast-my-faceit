@@ -14,12 +14,28 @@ export interface NormalizedStats {
   region: string;
   skillLevel: SkillLevel;
   elo: number;
+  /** Highest ELO observed in the recent N-match window. 0 if unknown. */
+  peakElo: number;
+  /** How many recent matches we sampled for peakElo (for honest labelling). */
+  peakEloSampleSize: number;
   matches: number;
   wins: number;
   losses: number;
   winRate: number;
   kd: number;
   hs: number;
+  /** Lifetime totals from FACEIT. 0 if FACEIT didn't return the field. */
+  totalKills: number;
+  totalDeaths: number;
+  totalHeadshots: number;
+  /** Multikills counted across the recent match-stats window. 0 if no data. */
+  tripleKills: number;
+  quadKills: number;
+  pentaKills: number;
+  /** How many recent matches we sampled multikills from. */
+  multikillSampleSize: number;
+  /** Best single-match kill count from the recent window. */
+  mostKillsInMatch: number;
   longestWinStreak: number;
   currentWinStreak: number;
   recentLossStreak: number;
@@ -34,10 +50,13 @@ export interface NormalizedStats {
 export type SlideId =
   | "intro"
   | "level"
+  | "peak"
   | "matches"
+  | "kills"
   | "kd"
   | "winrate"
   | "hs"
+  | "multikill"
   | "streak"
   | "map"
   | "verdict";
@@ -72,6 +91,8 @@ export interface Report {
     region: string;
     skillLevel: SkillLevel;
     elo: number;
+    peakElo: number;
+    peakEloSampleSize: number;
   };
   raw: NormalizedStats;
   slides: Slide[];

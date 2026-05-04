@@ -12,13 +12,24 @@
  *  │ Tone guide: punchy, playful, self-aware. No slurs, no targeting  │
  *  │ identity, no real-world threats. We roast the STATS not the      │
  *  │ person. Comedy first.                                            │
+ *  │                                                                  │
+ *  │ HONESTY RULES:                                                   │
+ *  │   • `peak` and `multikill` are computed from a recent window     │
+ *  │     (default 30 matches), NOT lifetime. Lines in those blocks    │
+ *  │     must reference the window (use {{sampleSize}}) instead of    │
+ *  │     "all-time" / "career high". Don't lie to the user.           │
+ *  │   • `kills`, `matches`, `kd`, `hs`, `winrate` ARE lifetime —     │
+ *  │     those can talk in career terms.                              │
  *  └──────────────────────────────────────────────────────────────────┘
  */
 
 import type {
   KDTier,
   HSTier,
+  KillsTier,
   MatchesTier,
+  MultikillTier,
+  PeakTier,
   StreakTier,
   WinRateTier,
 } from "./tiers";
@@ -303,6 +314,92 @@ const verdict: string[] = [
   "Closing thoughts: at least your nickname is funny.",
 ];
 
+// ── PEAK ELO (recent window only — never claim "all-time") ──────────
+// Vars: peakElo, currentElo, delta, sampleSize
+// IMPORTANT: This is the highest ELO seen across the player's last
+// `sampleSize` matches (typically 30). Lines must NOT imply all-time.
+const peak: ByTier<PeakTier> = {
+  atPeak: [
+    "{{peakElo}} ELO peak in your last {{sampleSize}} games — and that's right now. Don't queue. Don't move.",
+    "Your recent high is {{peakElo}} and you're sitting on it. Touching grass is the only legal move.",
+    "Highest ELO in {{sampleSize}} matches: today. Statistically, the next game ruins this.",
+  ],
+  near: [
+    "Recent peak (last {{sampleSize}}): {{peakElo}}. You're {{delta}} ELO under it. Spitting distance.",
+    "{{peakElo}} ELO touched in your last {{sampleSize}} — {{delta}} away from re-touching. Or never re-touching.",
+    "Last {{sampleSize}}-match high: {{peakElo}}. Currently {{delta}} below. The vibes are doable.",
+  ],
+  ascending: [
+    "Recent ceiling: {{peakElo}} (last {{sampleSize}} games). You're {{delta}} below it now. The slide is real.",
+    "{{peakElo}} ELO peak across your last {{sampleSize}}. Now {{delta}} short. Where did it go.",
+    "In the last {{sampleSize}} you hit {{peakElo}}, then donated {{delta}} ELO back to FACEIT.",
+  ],
+  fallen: [
+    "Peak in last {{sampleSize}}: {{peakElo}}. You are {{delta}} ELO below it. The fall arc is loud.",
+    "{{peakElo}} was the recent high. You've shed {{delta}} since. Diary entry: \"the rough patch.\"",
+    "Last {{sampleSize}}-game peak: {{peakElo}}. -{{delta}} since then. Tilt has compound interest.",
+  ],
+};
+
+// ── TOTAL CAREER KILLS ───────────────────────────────────────────────
+// Vars: totalKills, totalDeaths, perMatch, mostKills
+const kills: ByTier<KillsTier> = {
+  minor: [
+    "{{totalKills}} career kills. We've stepped on more bugs in the kitchen.",
+    "Only {{totalKills}} kills? You play to socialise, don't you.",
+    "{{totalKills}} kills total. Roughly {{perMatch}} per match. Adorable.",
+    "{{totalKills}} kills. You log in to AFK and we respect it.",
+  ],
+  casual: [
+    "{{totalKills}} career kills. Modest body count. Reliable hitman energy.",
+    "{{totalKills}} kills, ~{{perMatch}}/match. Average. Punctual. Dad at the BBQ.",
+    "{{totalKills}} ended virtual lives. Their families would like a word.",
+    "{{totalKills}} kills. Best single match: {{mostKills}}. We have notes.",
+  ],
+  veteran: [
+    "{{totalKills}} career kills. The respawn lobby fears you.",
+    "{{totalKills}} kills, ~{{perMatch}} a match. ICC is opening a file.",
+    "{{totalKills}} kills. Best single match: {{mostKills}}. Concerning. Compelling.",
+    "{{totalKills}} kills. {{totalDeaths}} deaths. The cycle continues.",
+  ],
+  psycho: [
+    "{{totalKills}} career kills. Touch grass. ALL the grass.",
+    "{{totalKills}} kills. The mortuary called. They're tired.",
+    "{{totalKills}} kills total. We've alerted Geneva.",
+    "{{totalKills}} kills. {{totalDeaths}} deaths. You've outlived a civilisation.",
+  ],
+};
+
+// ── MULTIKILLS (over the recent match-stats window only) ─────────────
+// Vars: triples, quads, pentas, sampleSize
+// IMPORTANT: this is over the last `sampleSize` games, not lifetime.
+const multikill: ByTier<MultikillTier> = {
+  tame: [
+    "Last {{sampleSize}}: {{triples}} triples, {{quads}} quads, {{pentas}} aces. Polite. Vegan. Mid.",
+    "Multi-kill activity over {{sampleSize}} games: barely any. Calm clip-saver.",
+    "{{triples}} triples in {{sampleSize}}. The peace.",
+    "Highlight reel last {{sampleSize}}: {{quads}} quads, {{pentas}} aces. Auto-saved nothing.",
+  ],
+  spicy: [
+    "Last {{sampleSize}}: {{triples}} triples, {{quads}} quads, {{pentas}} aces. Some heat.",
+    "Multi-kills over {{sampleSize}} games: occasional menace. {{quads}} quads keep it lively.",
+    "{{triples}}+{{quads}}+{{pentas}} multikills in {{sampleSize}} games. Mild war crimes.",
+    "Last {{sampleSize}}: a handful of clips. {{pentas}} aces. Saveable.",
+  ],
+  menace: [
+    "Last {{sampleSize}}: {{triples}} triples, {{quads}} quads, {{pentas}} aces. Therapy bills are mounting.",
+    "You don't trade kills, you collect them. {{quads}} quads in {{sampleSize}} games.",
+    "Highlight reel writes itself. {{pentas}} aces over {{sampleSize}} matches.",
+    "{{quads}} quads in {{sampleSize}}. Voice chat goes silent when you peek.",
+  ],
+  godmode: [
+    "Last {{sampleSize}}: {{triples}} triples, {{quads}} quads, {{pentas}} aces. ESIC opened a tab.",
+    "You unbox 1v5s like it's a hobby. {{pentas}} aces in {{sampleSize}} games.",
+    "{{quads}} quads, {{pentas}} aces in {{sampleSize}}. Demos pending review.",
+    "{{pentas}} aces in {{sampleSize}}. You don't queue, you headline.",
+  ],
+};
+
 // ── ZERO-MATCHES SPECIAL CASE ────────────────────────────────────────
 const ghost: string[] = [
   "Zero CS2 matches. A blank canvas. A ghost. A liability.",
@@ -313,10 +410,13 @@ const ghost: string[] = [
 export const TEMPLATES = {
   intro,
   level,
+  peak,
   matches,
+  kills,
   kd,
   winrate,
   hs,
+  multikill,
   streak,
   map,
   mapByName,

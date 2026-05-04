@@ -1,4 +1,8 @@
-import type { FaceitLifetimeStats, FaceitPlayer } from "./faceit";
+import type {
+  FaceitLifetimeStats,
+  FaceitMatchStats,
+  FaceitPlayer,
+} from "./faceit";
 import type { MapStat, NormalizedStats, SkillLevel } from "@/types/report";
 
 /**
@@ -59,9 +63,64 @@ function streakFrom(results: unknown, target: "1" | "0"): number {
   return count;
 }
 
+/**
+ * Walk the recent match-stats payload once and pull everything fun out of
+ * it: peak ELO, multikill counts, single-match kill peak, etc.
+ *
+ * Each FACEIT match item has a `stats` bag of stringified numbers. Older
+ * accounts may be missing fields (notably `Elo`); we return zeros and let
+ * the caller decide whether to display the slide.
+ */
+function summarizeMatches(matchStats: FaceitMatchStats | null) {
+  const empty = {
+    peakElo: 0,
+    peakEloSampleSize: 0,
+    triples: 0,
+    quads: 0,
+    pentas: 0,
+    multikillSampleSize: 0,
+    mostKills: 0,
+  };
+  if (!matchStats?.items?.length) return empty;
+
+  let peakElo = 0;
+  let peakEloSampleSize = 0;
+  let triples = 0;
+  let quads = 0;
+  let pentas = 0;
+  let mostKills = 0;
+  let multikillSampleSize = 0;
+
+  for (const item of matchStats.items) {
+    const s = item.stats ?? {};
+    const elo = num(pickKey(s, ["Elo", "elo"]));
+    if (elo > 0) {
+      peakEloSampleSize++;
+      if (elo > peakElo) peakElo = elo;
+    }
+    triples += num(pickKey(s, ["Triple Kills", "triple_kills"]));
+    quads += num(pickKey(s, ["Quadro Kills", "quadro_kills"]));
+    pentas += num(pickKey(s, ["Penta Kills", "penta_kills"]));
+    const k = num(pickKey(s, ["Kills"]));
+    if (k > mostKills) mostKills = k;
+    multikillSampleSize++;
+  }
+
+  return {
+    peakElo,
+    peakEloSampleSize,
+    triples,
+    quads,
+    pentas,
+    multikillSampleSize,
+    mostKills,
+  };
+}
+
 export function normalize(
   player: FaceitPlayer,
   stats: FaceitLifetimeStats,
+  matchStats: FaceitMatchStats | null = null,
 ): NormalizedStats {
   const lifetime = (stats.lifetime ?? {}) as Record<string, unknown>;
   const segments = stats.segments ?? [];
@@ -84,6 +143,27 @@ export function normalize(
       "Average Headshots %",
       "Total Headshots %",
       "Headshots %",
+    ]),
+  );
+  const totalKills = num(
+    pickKey(lifetime, [
+      "Total Kills with extended stats",
+      "Total Kills",
+      "Kills",
+    ]),
+  );
+  const totalDeaths = num(
+    pickKey(lifetime, [
+      "Total Deaths with extended stats",
+      "Total Deaths",
+      "Deaths",
+    ]),
+  );
+  const totalHeadshots = num(
+    pickKey(lifetime, [
+      "Total Headshots with extended stats",
+      "Total Headshots",
+      "Headshots",
     ]),
   );
   const longestWinStreak = num(pickKey(lifetime, ["Longest Win Streak"]));
@@ -119,6 +199,11 @@ export function normalize(
   }
 
   const cs2 = player.games?.cs2;
+  const currentElo = num(cs2?.faceit_elo);
+  const summary = summarizeMatches(matchStats);
+  // Peak is the higher of: current ELO and the highest seen in recent matches.
+  // Floor at currentElo so we never claim a peak below where the player is now.
+  const peakElo = Math.max(currentElo, summary.peakElo);
 
   return {
     nickname: player.nickname,
@@ -126,13 +211,23 @@ export function normalize(
     country: (player.country ?? "").toUpperCase(),
     region: cs2?.region ?? "—",
     skillLevel: clampSkillLevel(num(cs2?.skill_level)),
-    elo: num(cs2?.faceit_elo),
+    elo: currentElo,
+    peakElo,
+    peakEloSampleSize: summary.peakEloSampleSize,
     matches,
     wins,
     losses: Math.max(0, matches - wins),
     winRate,
     kd,
     hs,
+    totalKills,
+    totalDeaths,
+    totalHeadshots,
+    tripleKills: summary.triples,
+    quadKills: summary.quads,
+    pentaKills: summary.pentas,
+    multikillSampleSize: summary.multikillSampleSize,
+    mostKillsInMatch: summary.mostKills,
     longestWinStreak,
     currentWinStreak,
     recentLossStreak,

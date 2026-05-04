@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   FaceitError,
   getCs2LifetimeStats,
+  getCs2RecentMatchStats,
   getPlayerByNickname,
   isValidNickname,
 } from "@/lib/faceit";
@@ -50,8 +51,16 @@ export async function GET(req: Request) {
         404,
       );
     }
-    const stats = await getCs2LifetimeStats(player.player_id);
-    const normalized = normalize(player, stats);
+
+    // Fetch lifetime stats + recent match stats in parallel. The match-stats
+    // call is best-effort (used only for peak ELO) and never fails the
+    // request if FACEIT degrades it.
+    const [stats, matchStatsSettled] = await Promise.all([
+      getCs2LifetimeStats(player.player_id),
+      getCs2RecentMatchStats(player.player_id, 30).catch(() => null),
+    ]);
+
+    const normalized = normalize(player, stats, matchStatsSettled);
     const report = buildReport(normalized);
     return NextResponse.json({ ok: true, report });
   } catch (err) {

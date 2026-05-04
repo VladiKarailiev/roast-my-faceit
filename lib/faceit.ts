@@ -113,6 +113,14 @@ export interface FaceitLifetimeStats {
   }>;
 }
 
+export interface FaceitMatchStats {
+  items?: Array<{
+    stats?: Record<string, unknown>;
+    /** Match start in seconds since epoch (some payloads put it under stats too). */
+    started_at?: number;
+  }>;
+}
+
 // ---- Public API ----
 
 export async function getPlayerByNickname(
@@ -126,6 +134,21 @@ export async function getCs2LifetimeStats(
   playerId: string,
 ): Promise<FaceitLifetimeStats> {
   return faceitFetch<FaceitLifetimeStats>(`/players/${playerId}/stats/cs2`);
+}
+
+/**
+ * Per-match stat rows for the last `limit` CS2 games. Used to extract a
+ * recent peak ELO — FACEIT puts an "Elo" string on each row in the
+ * current API. If the field is missing for older accounts we just
+ * return `null` and the caller falls back to current ELO.
+ */
+export async function getCs2RecentMatchStats(
+  playerId: string,
+  limit = 30,
+): Promise<FaceitMatchStats> {
+  return faceitFetch<FaceitMatchStats>(
+    `/players/${playerId}/games/cs2/stats?limit=${limit}`,
+  );
 }
 
 export { isValidNickname } from "./validate";
